@@ -1,6 +1,38 @@
 # Backend integration guide
 
-This document is for **backend engineers** wiring real-time chat, tickets, and user data to the **ajaxter-chat / react-chat-widget-extension** client. The widget today loads static/demo data from `chatData.json`; your services replace that data and the `TODO` hooks in the source.
+This document is for **backend engineers** wiring real-time chat, tickets, and user data to the **ajaxter-chat** client (drawer chat widget for React.js / Next.js). The widget today loads static/demo data from `chatData.json`; your services replace that data and the `TODO` hooks in the source.
+
+---
+
+## 1a. Presence status (home bar: ACTIVE / AWAY / DND)
+
+| Field | Purpose |
+|-------|---------|
+| `widget.presenceStatus` | Optional value from your **DB** included in chat config — initializes the status control (overrides session-only cache). |
+| `widget.presenceUpdateUrl` | **`POST`** JSON: `{ "widgetId", "apiKey", "viewerUid?", "status" }` when the user changes status. Persist in your database; respond with `2xx`. |
+
+The client still writes the last choice to `sessionStorage` as a local fallback when the server omits `presenceStatus`.
+
+---
+
+## 1b. Viewer blocked (spam / not in allow lists)
+
+The config payload may include:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `widget.viewerBlocked` | `boolean` | When `true`, the widget **does not** show home, chats, tickets, or menus — only a centered message and a form to request re-enablement. |
+| `users[].viewerBlocked` / `developers[].viewerBlocked` | `boolean` (optional) | When `true` on the row whose `uid` matches the current viewer (`widget.viewerUid` or React `viewer.uid`), the same blocked UI applies. |
+| `widget.blockedViewerMessage` | `string` (optional) | Overrides the default copy (spam notice). |
+| `widget.reenableRequestUrl` | `string` (optional) | Absolute `POST` URL. Body JSON: `{ "widgetId", "apiKey", "viewerUid?", "message" }`. |
+
+**Server-side rule (recommended):** Set `viewerBlocked: true` when the authenticated viewer is **not** present in your allowed user list, ticket participants, or chat membership — or when they are explicitly spam-blocked. The client only reads the flag; list checks belong on the API that serves `chatData.json` (or a dedicated session endpoint).
+
+---
+
+## 1c. Host app identity (React `viewer` prop)
+
+The widget accepts an optional **`viewer`** prop (`ChatWidgetViewer`): `uid`, `name`, `type` (`developer` | `user`), and optional `projectId`. These **override** `viewerUid`, `viewerName`, and `viewerType` from `chatData.json` and set `viewerProjectId` on the effective config. **`type`** drives the same UI as remote `viewerType` (e.g. staff vs end user). When **`projectId`** is set, directory and recent-chat lists only include users whose `ChatUser.project` matches exactly (your API should align `project` with the host app’s project id or label).
 
 ---
 

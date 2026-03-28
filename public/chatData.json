@@ -25,7 +25,8 @@
     "maxEmojiCount": 20,
     "allowTranscriptDownload": true,
     "allowReport": true,
-    "allowBlock": true
+    "allowBlock": true,
+    "viewerBlocked": false
   },
   "developers": [
     {
@@ -61,7 +62,8 @@
       "type": "user",
       "avatar": null,
       "status": "online",
-      "designation": "Product Manager"
+      "designation": "Product Manager",
+      "viewerBlocked": false
     },
     {
       "uid": "usr_002",
@@ -72,7 +74,8 @@
       "type": "user",
       "avatar": null,
       "status": "away",
-      "designation": "Business Analyst"
+      "designation": "Business Analyst",
+      "viewerBlocked": true
     },
     {
       "uid": "usr_003",

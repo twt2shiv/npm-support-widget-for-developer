@@ -1,7 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { WidgetConfig, UserListContext, Ticket } from '../../types';
 import { SlideNavMenu } from '../SlideNavMenu';
 import { truncateWords } from '../../utils/chat';
+import type { PresenceStatus } from '../../types';
+import {
+  resolveInitialPresence,
+  savePresenceStatus,
+  syncPresenceToServer,
+} from '../../utils/presenceStatus';
 
 export interface HomeNavigateOptions {
   /** When true, list screens play stagger animation (home burger menu only) */
@@ -10,14 +16,44 @@ export interface HomeNavigateOptions {
 
 interface HomeScreenProps {
   config: WidgetConfig;
+  /** Same as env / chatData — required to POST presence in production */
+  apiKey: string;
   onNavigate: (ctx: UserListContext | 'ticket', options?: HomeNavigateOptions) => void;
   /** Open a specific pending ticket (full detail) */
   onOpenTicket: (ticketId: string) => void;
   tickets: Ticket[];
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ config, onNavigate, onOpenTicket, tickets }) => {
+const STATUS_OPTIONS: { value: PresenceStatus; label: string }[] = [
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'AWAY', label: 'Away' },
+  { value: 'DND', label: 'DND' },
+];
+
+export const HomeScreen: React.FC<HomeScreenProps> = ({ config, apiKey, onNavigate, onOpenTicket, tickets }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [presence, setPresence] = useState<PresenceStatus>(() =>
+    resolveInitialPresence(config.id, config.presenceStatus),
+  );
+
+  useEffect(() => {
+    setPresence(resolveInitialPresence(config.id, config.presenceStatus));
+  }, [config.id, config.presenceStatus]);
+
+  const setPresenceAndSave = (s: PresenceStatus) => {
+    setPresence(s);
+    savePresenceStatus(config.id, s);
+    const url = config.presenceUpdateUrl?.trim();
+    if (!url) return;
+    void syncPresenceToServer(url, {
+      widgetId: config.id,
+      apiKey,
+      viewerUid: config.viewerUid?.trim() || undefined,
+      status: s,
+    }).catch(err => {
+      console.error('[ajaxter-chat] presence sync failed', err);
+    });
+  };
   const showSupport = config.chatType === 'SUPPORT' || config.chatType === 'BOTH';
   const showChat = config.chatType === 'CHAT' || config.chatType === 'BOTH';
   const viewerIsDev = config.viewerType === 'developer';
@@ -56,14 +92,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ config, onNavigate, onOp
         }}
       />
 
-      {/* Top bar — burger left */}
+      {/* Top bar — menu + presence status */}
       <div
         style={{
           flexShrink: 0,
-          padding: '14px 16px 10px',
+          padding: '12px 14px 12px',
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
+          gap: 10,
           background: '#fff',
           borderBottom: '1px solid #eef0f5',
         }}
@@ -91,6 +127,59 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ config, onNavigate, onOp
           <span style={{ width: 18, height: 2, background: '#334155', borderRadius: 1 }} />
           <span style={{ width: 18, height: 2, background: '#334155', borderRadius: 1 }} />
         </button>
+
+        <div style={{ flex: 1, minWidth: 0 }} />
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flexShrink: 0,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <div
+            role="group"
+            aria-label="Your status"
+            style={{
+              display: 'flex',
+              borderRadius: 10,
+              padding: 3,
+              background: '#f1f5f9',
+              gap: 2,
+            }}
+          >
+            {STATUS_OPTIONS.map(({ value, label }) => {
+              const isOn = presence === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPresenceAndSave(value)}
+                  style={{
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '7px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    textTransform: 'uppercase',
+                    background: isOn ? config.primaryColor : 'transparent',
+                    color: isOn ? '#fff' : '#64748b',
+                    boxShadow: isOn ? `0 2px 8px ${config.primaryColor}55` : 'none',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="cw-scroll" style={{ flex: 1, overflowY: 'auto', padding: '20px 18px 28px' }}>

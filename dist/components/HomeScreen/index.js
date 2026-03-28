@@ -1,10 +1,36 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { SlideNavMenu } from '../SlideNavMenu';
 import { truncateWords } from '../../utils/chat';
-export const HomeScreen = ({ config, onNavigate, onOpenTicket, tickets }) => {
+import { resolveInitialPresence, savePresenceStatus, syncPresenceToServer, } from '../../utils/presenceStatus';
+const STATUS_OPTIONS = [
+    { value: 'ACTIVE', label: 'Active' },
+    { value: 'AWAY', label: 'Away' },
+    { value: 'DND', label: 'DND' },
+];
+export const HomeScreen = ({ config, apiKey, onNavigate, onOpenTicket, tickets }) => {
     var _a, _b, _c, _d;
     const [menuOpen, setMenuOpen] = useState(false);
+    const [presence, setPresence] = useState(() => resolveInitialPresence(config.id, config.presenceStatus));
+    useEffect(() => {
+        setPresence(resolveInitialPresence(config.id, config.presenceStatus));
+    }, [config.id, config.presenceStatus]);
+    const setPresenceAndSave = (s) => {
+        var _a, _b;
+        setPresence(s);
+        savePresenceStatus(config.id, s);
+        const url = (_a = config.presenceUpdateUrl) === null || _a === void 0 ? void 0 : _a.trim();
+        if (!url)
+            return;
+        void syncPresenceToServer(url, {
+            widgetId: config.id,
+            apiKey,
+            viewerUid: ((_b = config.viewerUid) === null || _b === void 0 ? void 0 : _b.trim()) || undefined,
+            status: s,
+        }).catch(err => {
+            console.error('[ajaxter-chat] presence sync failed', err);
+        });
+    };
     const showSupport = config.chatType === 'SUPPORT' || config.chatType === 'BOTH';
     const showChat = config.chatType === 'CHAT' || config.chatType === 'BOTH';
     const viewerIsDev = config.viewerType === 'developer';
@@ -25,28 +51,58 @@ export const HomeScreen = ({ config, onNavigate, onOpenTicket, tickets }) => {
     };
     return (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden', background: '#fafbfc' }, children: [_jsx(SlideNavMenu, { open: menuOpen, onClose: () => setMenuOpen(false), primaryColor: config.primaryColor, chatType: config.chatType, viewerType: (_d = config.viewerType) !== null && _d !== void 0 ? _d : 'user', onSelect: ctx => {
                     onNavigate(ctx, { fromMenu: true });
-                } }), _jsx("div", { style: {
+                } }), _jsxs("div", { style: {
                     flexShrink: 0,
-                    padding: '14px 16px 10px',
+                    padding: '12px 14px 12px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
+                    gap: 10,
                     background: '#fff',
                     borderBottom: '1px solid #eef0f5',
-                }, children: _jsxs("button", { type: "button", "aria-label": "Open menu", onClick: () => setMenuOpen(true), style: {
-                        width: 40,
-                        height: 40,
-                        borderRadius: 10,
-                        border: 'none',
-                        background: '#f1f5f9',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 5,
-                        flexShrink: 0,
-                    }, children: [_jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } })] }) }), _jsxs("div", { className: "cw-scroll", style: { flex: 1, overflowY: 'auto', padding: '20px 18px 28px' }, children: [_jsx("h1", { style: {
+                }, children: [_jsxs("button", { type: "button", "aria-label": "Open menu", onClick: () => setMenuOpen(true), style: {
+                            width: 40,
+                            height: 40,
+                            borderRadius: 10,
+                            border: 'none',
+                            background: '#f1f5f9',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                            flexShrink: 0,
+                        }, children: [_jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } })] }), _jsx("div", { style: { flex: 1, minWidth: 0 } }), _jsxs("div", { style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            flexShrink: 0,
+                            flexWrap: 'wrap',
+                            justifyContent: 'flex-end',
+                        }, children: [_jsx("span", { style: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }, children: "Status" }), _jsx("div", { role: "group", "aria-label": "Your status", style: {
+                                    display: 'flex',
+                                    borderRadius: 10,
+                                    padding: 3,
+                                    background: '#f1f5f9',
+                                    gap: 2,
+                                }, children: STATUS_OPTIONS.map(({ value, label }) => {
+                                    const isOn = presence === value;
+                                    return (_jsx("button", { type: "button", onClick: () => setPresenceAndSave(value), style: {
+                                            border: 'none',
+                                            borderRadius: 8,
+                                            padding: '7px 10px',
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            letterSpacing: '0.04em',
+                                            cursor: 'pointer',
+                                            fontFamily: 'inherit',
+                                            textTransform: 'uppercase',
+                                            background: isOn ? config.primaryColor : 'transparent',
+                                            color: isOn ? '#fff' : '#64748b',
+                                            boxShadow: isOn ? `0 2px 8px ${config.primaryColor}55` : 'none',
+                                            transition: 'background 0.15s, color 0.15s',
+                                        }, children: label }, value));
+                                }) })] })] }), _jsxs("div", { className: "cw-scroll", style: { flex: 1, overflowY: 'auto', padding: '20px 18px 28px' }, children: [_jsx("h1", { style: {
                             margin: '0 0 8px',
                             fontSize: 24,
                             fontWeight: 800,

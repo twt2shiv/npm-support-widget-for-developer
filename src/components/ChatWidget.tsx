@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChatWidgetProps, BottomTab, Screen, UserListContext, ChatUser, Ticket, RecentChat, ChatMessage } from '../types';
 import { loadLocalConfig } from '../config';
 import { mergeTheme } from '../utils/theme';
@@ -21,8 +21,11 @@ import { BlockListScreen }   from './BlockList';
 import { CallScreen }        from './CallScreen';
 import { MaintenanceView }   from './MaintenanceView';
 import { BottomTabs }        from './Tabs/BottomTabs';
+import { ViewerBlockedScreen } from './ViewerBlockedScreen';
+import { PermissionsGateScreen } from './PermissionsGateScreen';
+import { hasStoredPermissionsGrant } from '../utils/widgetPermissions';
 
-export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => {
+export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme, viewer }) => {
   /* SSR guard */
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -52,6 +55,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
   const [messageSoundEnabled, setMessageSoundEnabledState] = useState(true);
   /** Stagger list animation only when opening from home burger menu */
   const [listEntranceAnimation, setListEntranceAnimation] = useState(false);
+  /** Microphone, geolocation, and screen capture granted for this tab */
+  const [permissionsOk, setPermissionsOk] = useState(false);
 
   /* App state */
   const [tickets,      setTickets]      = useState<Ticket[]>(data?.sampleTickets ?? []);
@@ -63,8 +68,10 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
     if (data) {
       setTickets(data.sampleTickets);
       setBlockedUids(data.blockedUsers);
-      // Seed recent chats from sample chats
-      const all = [...(data.developers ?? []), ...(data.users ?? [])];
+      const pid = viewer?.projectId?.trim();
+      const devs = data.developers ?? [];
+      const usr = pid ? (data.users ?? []).filter(u => u.project === pid) : (data.users ?? []);
+      const all = [...devs, ...usr];
       const recents: RecentChat[] = Object.entries(data.sampleChats).map(([uid, msgs]) => {
         const user = all.find(u => u.uid === uid);
         if (!user || msgs.length === 0) return null;
@@ -80,7 +87,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
       }).filter(Boolean) as RecentChat[];
       setRecentChats(recents);
     }
-  }, [data]);
+  }, [data, viewer?.projectId]);
 
   /* Chat hook */
   const {
@@ -120,11 +127,31 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
     }, 300);
   }, [persistWidgetState]);
 
+  useEffect(() => {
+    const id = data?.widget?.id;
+    if (!id) return;
+    setPermissionsOk(hasStoredPermissionsGrant(id));
+  }, [data?.widget?.id]);
+
   const restoredRef = useRef(false);
   useEffect(() => {
     if (!data?.widget || restoredRef.current) return;
     const w = data.widget;
     setMessageSoundEnabledState(getMessageSoundEnabled(w.id));
+    const uidForBlock = (viewer?.uid ?? w.viewerUid)?.trim();
+    let viewerIsBlocked = w.viewerBlocked === true;
+    if (!viewerIsBlocked && uidForBlock) {
+      const rec = [...data.developers, ...data.users].find(x => x.uid === uidForBlock);
+      viewerIsBlocked = rec?.viewerBlocked === true;
+    }
+    if (viewerIsBlocked) {
+      clearChat();
+      setScreen('home');
+      setActiveTab('home');
+      setViewingTicketId(null);
+      restoredRef.current = true;
+      return;
+    }
     const p = loadSession(w.id);
     if (p) {
       setScreen(p.screen);
@@ -133,7 +160,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
       setViewingTicketId(p.viewingTicketId ?? null);
       setChatReturnCtx(p.chatReturnCtx ?? 'conversation');
       if (p.activeUserUid) {
-        const u = [...data.developers, ...data.users].find(x => x.uid === p.activeUserUid);
+        const pid = viewer?.projectId?.trim();
+        const pool = pid
+          ? [...data.developers, ...data.users].filter(u => u.project === pid)
+          : [...data.developers, ...data.users];
+        const u = pool.find(x => x.uid === p.activeUserUid);
         if (u) {
           const hist = Array.isArray(p.messages) && p.messages.length
             ? p.messages
@@ -143,7 +174,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
       }
     }
     restoredRef.current = true;
-  }, [data, selectUser]);
+  }, [data, selectUser, clearChat, viewer?.projectId, viewer?.uid]);
+
+  useEffect(() => {
+    if (!data?.widget) return;
+    const w = data.widget;
+    const uid = (viewer?.uid ?? w.viewerUid)?.trim();
+    let blocked = w.viewerBlocked === true;
+    if (!blocked && uid) {
+      const rec = [...data.developers, ...data.users].find(x => x.uid === uid);
+      blocked = rec?.viewerBlocked === true;
+    }
+    if (!blocked) return;
+    clearChat();
+    setScreen('home');
+    setActiveTab('home');
+    setViewingTicketId(null);
+  }, [data?.widget, data?.developers, data?.users, viewer?.uid, clearChat]);
 
   useEffect(() => {
     if (!data?.widget) return;
@@ -291,10 +338,40 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
   const isBlocked      = activeUser ? blockedUids.includes(activeUser.uid) : false;
-  const widgetConfig   = data?.widget;
+
+  const widgetConfig = useMemo(() => {
+    if (!data?.widget) return undefined;
+    const w = { ...data.widget };
+    if (viewer) {
+      w.viewerUid = viewer.uid;
+      w.viewerName = viewer.name;
+      w.viewerType = viewer.type;
+      if (viewer.projectId?.trim()) w.viewerProjectId = viewer.projectId.trim();
+    }
+    return w;
+  }, [data?.widget, viewer]);
+
   const primaryColor   = theme.primaryColor;
 
-  const allUsers     = data ? [...data.developers, ...data.users]     : [];
+  /** All developers are listed; only end-`user` rows are filtered by `viewer.projectId`. */
+  const allUsers = useMemo(() => {
+    if (!data) return [];
+    const pid = viewer?.projectId?.trim();
+    const devs = data.developers ?? [];
+    if (!pid) return [...devs, ...data.users];
+    const usersInProject = data.users.filter(u => u.project === pid);
+    return [...devs, ...usersInProject];
+  }, [data, viewer?.projectId]);
+
+  const effectiveViewerBlocked = useMemo(() => {
+    if (!widgetConfig) return false;
+    if (widgetConfig.viewerBlocked === true) return true;
+    const uid = (viewer?.uid ?? widgetConfig.viewerUid)?.trim();
+    if (!uid || !data) return false;
+    const rec = [...data.developers, ...data.users].find(x => x.uid === uid);
+    return rec?.viewerBlocked === true;
+  }, [widgetConfig, viewer?.uid, data]);
+
   const viewerIsDev  = widgetConfig?.viewerType === 'developer';
   const viewerUid    = widgetConfig?.viewerUid;
 
@@ -311,8 +388,16 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
       })
     : [];
 
-  const otherDevelopers = data?.developers.filter(d => d.uid !== viewerUid) ?? [];
+  const otherDevelopers = useMemo(
+    () => allUsers.filter(u => u.type === 'developer' && u.uid !== viewerUid),
+    [allUsers, viewerUid],
+  );
   const blockedUsers  = allUsers.filter(u => blockedUids.includes(u.uid));
+
+  const totalUnread = useMemo(
+    () => recentChats.reduce((sum, c) => sum + Math.max(0, c.unread ?? 0), 0),
+    [recentChats],
+  );
 
   const handleTransferToDeveloper = useCallback((dev: ChatUser) => {
     if (!activeUser || !widgetConfig) return;
@@ -387,12 +472,14 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
         }
       `}</style>
 
-      {/* ── Floating Button ── */}
+      {/* ── Floating Button (unread badge + tooltip when closed) ── */}
       {!isOpen && (
         <button
           className="cw-root"
+          type="button"
           onClick={openDrawer}
-          aria-label={theme.buttonLabel}
+          aria-label={totalUnread > 0 ? `${theme.buttonLabel}, ${totalUnread} unread` : theme.buttonLabel}
+          title={totalUnread > 0 ? `${totalUnread} unread message${totalUnread === 1 ? '' : 's'}` : theme.buttonLabel}
           style={{
             position: 'fixed', bottom: 24, zIndex: 9999,
             ...posStyle,
@@ -415,10 +502,35 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
             (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 28px ${theme.buttonColor}55`;
           }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
-              stroke={theme.buttonTextColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+                stroke={theme.buttonTextColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {totalUnread > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: -8,
+                  right: -10,
+                  minWidth: 20,
+                  height: 20,
+                  padding: '0 5px',
+                  borderRadius: 999,
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  lineHeight: '20px',
+                  textAlign: 'center',
+                  border: '2px solid #fff',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {totalUnread > 99 ? '99+' : totalUnread}
+              </span>
+            )}
+          </span>
           <span>{theme.buttonLabel}</span>
         </button>
       )}
@@ -482,8 +594,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
           {/* ── Main content ── */}
           {!cfgLoading && !cfgError && widgetConfig && (
             <>
-              {/* Resize + Close controls — shown outside chat/call screens */}
-              {screen !== 'chat' && screen !== 'call' && (
+              {/* Resize + Close controls — hidden on blocked screen (Close is in-panel) */}
+              {screen !== 'chat' && screen !== 'call' && !effectiveViewerBlocked && (
                 <div style={{
                   position: 'absolute', top: 12,
                   right: theme.buttonPosition === 'bottom-left' ? 'auto' : 12,
@@ -512,13 +624,28 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
                 </div>
               )}
 
+              {/* ── ACTIVE: viewer spam-blocked (no chat/tickets UI) ── */}
+              {widgetConfig.status === 'ACTIVE' && effectiveViewerBlocked && (
+                <ViewerBlockedScreen config={widgetConfig} apiKey={apiKey} onClose={closeDrawer} />
+              )}
+
+              {/* ── ACTIVE: microphone, location, screen share required ── */}
+              {widgetConfig.status === 'ACTIVE' && !effectiveViewerBlocked && !permissionsOk && (
+                <PermissionsGateScreen
+                  primaryColor={primaryColor}
+                  widgetId={widgetConfig.id}
+                  onGranted={() => setPermissionsOk(true)}
+                />
+              )}
+
               {/* ── ACTIVE ── */}
-              {widgetConfig.status === 'ACTIVE' && (
+              {widgetConfig.status === 'ACTIVE' && !effectiveViewerBlocked && permissionsOk && (
                 <div className="cw-scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
                   {screen === 'home' && (
                     <HomeScreen
                       config={widgetConfig}
+                      apiKey={apiKey}
                       onNavigate={handleCardClick}
                       onOpenTicket={handleOpenTicket}
                       tickets={tickets}
@@ -631,6 +758,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme }) => 
 
               {/* ── Bottom Tabs (hidden during chat/call/user-list/block-list) ── */}
               {widgetConfig.status === 'ACTIVE' &&
+               !effectiveViewerBlocked &&
+               permissionsOk &&
                screen !== 'chat' &&
                screen !== 'call' &&
                screen !== 'user-list' &&

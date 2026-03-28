@@ -11,7 +11,7 @@
  * The theme prop below is OPTIONAL — it overrides remote config colors.
  */
 import React from 'react';
-import { ChatWidget } from 'react-chat-widget-extension';
+import { ChatWidget } from 'ajaxter-chat';
 
 export default function App() {
   return (

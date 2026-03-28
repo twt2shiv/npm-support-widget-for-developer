@@ -314,12 +314,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
               marginLeft: 4,
             }}
           >
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>Sound</span>
             <button
               type="button"
               role="switch"
               aria-checked={messageSoundEnabled}
               onClick={() => onToggleMessageSound(!messageSoundEnabled)}
+              aria-label="Toggle message sound"
+              title="Toggle message sound"
               style={{
                 width: 36,
                 height: 20,

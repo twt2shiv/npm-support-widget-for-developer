@@ -6,6 +6,8 @@ export interface HomeNavigateOptions {
 }
 interface HomeScreenProps {
     config: WidgetConfig;
+    /** Same as env / chatData — required to POST presence in production */
+    apiKey: string;
     onNavigate: (ctx: UserListContext | 'ticket', options?: HomeNavigateOptions) => void;
     /** Open a specific pending ticket (full detail) */
     onOpenTicket: (ticketId: string) => void;

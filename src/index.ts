@@ -16,16 +16,21 @@ export { useWebRTC }          from './hooks/useWebRTC';
 export { useRemoteConfig }    from './hooks/useRemoteConfig';
 
 export { shouldShowPrivacyNotice, dismissPrivacyNotice, getPrivacyDismissedAt } from './utils/privacyConsent';
+export { submitReenableRequest } from './utils/reenableRequest';
+export type { ReenableRequestPayload } from './utils/reenableRequest';
 export { loadLocalConfig, fetchRemoteChatData } from './config';
 export { mergeTheme, darken }                   from './utils/theme';
+export { loadPresenceStatus, savePresenceStatus, resolveInitialPresence, syncPresenceToServer } from './utils/presenceStatus';
+export type { PresenceSyncPayload } from './utils/presenceStatus';
 export { avatarColor, initials, formatTime, formatDate, generateTranscript, downloadText, truncateWords } from './utils/chat';
 
 export type {
-  ChatWidgetProps, ChatWidgetTheme,
+  ChatWidgetProps, ChatWidgetTheme, ChatWidgetViewer,
   WidgetConfig, RemoteChatData,
   ChatUser, ChatMessage, Ticket, RecentChat,
   CallSession, CallState,
   ChatStatus, ChatType, UserType, OnlineStatus,
   Screen, BottomTab, UserListContext, MessageType,
   LocalEnvConfig,
+  PresenceStatus,
 } from './types';

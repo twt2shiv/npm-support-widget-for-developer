@@ -23,6 +23,11 @@ export interface WidgetConfig {
     viewerUid?: string;
     /** Display name for transfer notes (optional) */
     viewerName?: string;
+    /**
+     * Host app project scope (set when embedding passes `viewer.projectId`).
+     * Use for API calls; lists can be filtered to users in the same project.
+     */
+    viewerProjectId?: string;
     /** Privacy Policy URL (linked from chat consent banner) */
     privacyPolicyUrl?: string;
     /** Set false to hide the consent note above the composer */
@@ -41,6 +46,28 @@ export interface WidgetConfig {
     allowTranscriptDownload: boolean;
     allowReport: boolean;
     allowBlock: boolean;
+    /**
+     * When `true` (set by the server if this viewer is spam-blocked or not in allowed user/ticket/chat lists),
+     * the widget hides all normal navigation and shows only the blocked-user screen with a re-enable request form.
+     */
+    viewerBlocked?: boolean;
+    /** Optional override for the blocked message (default is a fixed spam notice). */
+    blockedViewerMessage?: string;
+    /**
+     * Absolute URL for `POST` JSON re-enable requests. If omitted, the submit button explains that no endpoint is configured.
+     * @example https://api.example.com/widgets/reenable-request
+     */
+    reenableRequestUrl?: string;
+    /**
+     * Current presence from your API/DB (include in chatData or a session payload).
+     * When set, it initializes the status control and overrides session-only cache.
+     */
+    presenceStatus?: PresenceStatus;
+    /**
+     * Production: `POST` JSON `{ widgetId, apiKey, viewerUid?, status }` to save presence in your database.
+     * The client still mirrors to sessionStorage as a local fallback.
+     */
+    presenceUpdateUrl?: string;
 }
 export interface RemoteChatData {
     widget: WidgetConfig;
@@ -58,6 +85,8 @@ export type BottomTab = 'home' | 'chats' | 'tickets';
 export type Screen = 'home' | 'user-list' | 'chat' | 'recent-chats' | 'tickets' | 'ticket-new' | 'ticket-detail' | 'block-list' | 'call';
 export type UserListContext = 'support' | 'conversation';
 export type MessageType = 'text' | 'voice' | 'attachment' | 'emoji';
+/** Home status selector; persist via `presenceUpdateUrl` in production */
+export type PresenceStatus = 'ACTIVE' | 'AWAY' | 'DND';
 export interface ChatUser {
     uid: string;
     name: string;
@@ -68,6 +97,11 @@ export interface ChatUser {
     avatar: string | null;
     status: OnlineStatus;
     designation: string;
+    /**
+     * When `true` for the row matching the current viewer (`viewerUid` / `viewer.uid`),
+     * the widget shows the spam/blocked screen (same as `widget.viewerBlocked`).
+     */
+    viewerBlocked?: boolean;
 }
 export interface ChatMessage {
     id: string;
@@ -126,6 +160,18 @@ export interface ChatWidgetTheme {
     buttonPosition?: 'bottom-right' | 'bottom-left';
     borderRadius?: string;
 }
+/**
+ * Pass the logged-in user from your React app so the widget matches identity and UI (user vs developer).
+ * Overrides `viewerUid`, `viewerName`, `viewerType` from remote `chatData.json` when provided.
+ */
+export interface ChatWidgetViewer {
+    uid: string;
+    name: string;
+    type: UserType;
+    /** When set, directory lists only include users whose `ChatUser.project` equals this string (exact match). */
+    projectId?: string;
+}
 export interface ChatWidgetProps {
     theme?: ChatWidgetTheme;
+    viewer?: ChatWidgetViewer;
 }
