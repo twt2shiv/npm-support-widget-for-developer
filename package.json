@@ -1,0 +1,28 @@
+{
+  "name": "ajaxter-chat",
+  "version": "3.0.12",
+  "description": "Drawer-based chat widget with support chat, tickets, WebRTC calling, voice messages, block list, and transcript download.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "src", "public"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0",
+    "react-dom": ">=17.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["react","nextjs","chat","widget","webrtc","support","tickets","drawer","typescript"],
+  "license": "MIT"
+}
