@@ -8,6 +8,8 @@ interface CallScreenProps {
     onToggleMute: () => void;
     onToggleCamera: () => void;
     primaryColor: string;
+    /** Collapse the drawer while keeping the call active (mic/cam stay on). */
+    onMinimize?: () => void;
 }
 export declare const CallScreen: React.FC<CallScreenProps>;
 export {};

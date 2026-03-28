@@ -10,11 +10,13 @@ interface CallScreenProps {
   onToggleMute:   () => void;
   onToggleCamera: () => void;
   primaryColor:   string;
+  /** Collapse the drawer while keeping the call active (mic/cam stay on). */
+  onMinimize?:    () => void;
 }
 
 export const CallScreen: React.FC<CallScreenProps> = ({
   session, localVideoRef, remoteVideoRef,
-  onEnd, onToggleMute, onToggleCamera, primaryColor,
+  onEnd, onToggleMute, onToggleCamera, primaryColor, onMinimize,
 }) => {
   const [duration, setDuration] = useState(0);
   const peer = session.peer as ChatUser;
@@ -64,6 +66,26 @@ export const CallScreen: React.FC<CallScreenProps> = ({
               {session.state === 'ended'     && 'Call Ended'}
             </div>
           </div>
+          {(session.state === 'calling' || session.state === 'connected') && onMinimize && (
+            <button
+              type="button"
+              onClick={onMinimize}
+              title="Minimize — keep call while you use the page"
+              style={{
+                padding: '8px 12px',
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.35)',
+                background: 'rgba(0,0,0,0.25)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              Minimize
+            </button>
+          )}
         </div>
 
         {/* Center: avatar + name */}

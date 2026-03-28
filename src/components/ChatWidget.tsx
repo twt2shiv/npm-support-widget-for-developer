@@ -19,6 +19,7 @@ import { TicketDetailScreen } from './TicketDetailScreen';
 import { TicketFormScreen } from './TicketFormScreen';
 import { BlockListScreen }   from './BlockList';
 import { CallScreen }        from './CallScreen';
+import { MiniCallBar }       from './MiniCallBar';
 import { MaintenanceView }   from './MaintenanceView';
 import { BottomTabs }        from './Tabs/BottomTabs';
 import { ViewerBlockedScreen } from './ViewerBlockedScreen';
@@ -45,6 +46,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme, viewe
   /* Drawer open state */
   const [isOpen,      setIsOpen]      = useState(false);
   const [closing,     setClosing]     = useState(false); // for slide-out animation
+  /** True when user hid the drawer during ringing/connected call; WebRTC session stays active. */
+  const [callMinimized, setCallMinimized] = useState(false);
 
   /* Navigation */
   const [activeTab,    setActiveTab]    = useState<BottomTab>('home');
@@ -98,10 +101,18 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme, viewe
   /* WebRTC hook */
   const { session: callSession, localVideoRef, remoteVideoRef, startCall, endCall, toggleMute, toggleCamera } = useWebRTC();
 
+  const callInProgress =
+    callSession.state === 'calling' || callSession.state === 'connected';
+
+  useEffect(() => {
+    if (!callInProgress) setCallMinimized(false);
+  }, [callInProgress]);
+
   /* ── Drawer open/close with slide animation ───────────────────────────── */
   const openDrawer = () => {
     setClosing(false);
     setIsOpen(true);
+    setCallMinimized(false);
   };
 
   const persistWidgetState = useCallback(() => {
@@ -333,8 +344,14 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme, viewe
 
   const handleEndCall = useCallback(() => {
     endCall();
+    setCallMinimized(false);
     setScreen('chat');
   }, [endCall]);
+
+  const minimizeCall = useCallback(() => {
+    setCallMinimized(true);
+    closeDrawer();
+  }, [closeDrawer]);
 
   /* ── Derived ─────────────────────────────────────────────────────────── */
   const isBlocked      = activeUser ? blockedUids.includes(activeUser.uid) : false;
@@ -471,6 +488,17 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme, viewe
           .cw-drawer-panel { width: 100%; }
         }
       `}</style>
+
+      {/* ── Minimized call bar (drawer closed, call still active) ── */}
+      {!isOpen && callMinimized && callInProgress && callSession.peer && (
+        <MiniCallBar
+          session={callSession}
+          primaryColor={primaryColor}
+          buttonPosition={theme.buttonPosition}
+          onExpand={openDrawer}
+          onEnd={handleEndCall}
+        />
+      )}
 
       {/* ── Floating Button (unread badge + tooltip when closed) ── */}
       {!isOpen && (
@@ -698,6 +726,7 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ theme: localTheme, viewe
                       onToggleMute={toggleMute}
                       onToggleCamera={toggleCamera}
                       primaryColor={primaryColor}
+                      onMinimize={minimizeCall}
                     />
                   )}
 

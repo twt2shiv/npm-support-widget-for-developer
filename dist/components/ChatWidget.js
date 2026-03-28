@@ -17,6 +17,7 @@ import { TicketDetailScreen } from './TicketDetailScreen';
 import { TicketFormScreen } from './TicketFormScreen';
 import { BlockListScreen } from './BlockList';
 import { CallScreen } from './CallScreen';
+import { MiniCallBar } from './MiniCallBar';
 import { MaintenanceView } from './MaintenanceView';
 import { BottomTabs } from './Tabs/BottomTabs';
 import { ViewerBlockedScreen } from './ViewerBlockedScreen';
@@ -36,6 +37,8 @@ export const ChatWidget = ({ theme: localTheme, viewer }) => {
     /* Drawer open state */
     const [isOpen, setIsOpen] = useState(false);
     const [closing, setClosing] = useState(false); // for slide-out animation
+    /** True when user hid the drawer during ringing/connected call; WebRTC session stays active. */
+    const [callMinimized, setCallMinimized] = useState(false);
     /* Navigation */
     const [activeTab, setActiveTab] = useState('home');
     const [screen, setScreen] = useState('home');
@@ -82,10 +85,16 @@ export const ChatWidget = ({ theme: localTheme, viewer }) => {
     const { messages, activeUser, isPaused, isReported, selectUser, sendMessage, togglePause, reportChat, clearChat, setMessages, } = useChat();
     /* WebRTC hook */
     const { session: callSession, localVideoRef, remoteVideoRef, startCall, endCall, toggleMute, toggleCamera } = useWebRTC();
+    const callInProgress = callSession.state === 'calling' || callSession.state === 'connected';
+    useEffect(() => {
+        if (!callInProgress)
+            setCallMinimized(false);
+    }, [callInProgress]);
     /* ── Drawer open/close with slide animation ───────────────────────────── */
     const openDrawer = () => {
         setClosing(false);
         setIsOpen(true);
+        setCallMinimized(false);
     };
     const persistWidgetState = useCallback(() => {
         var _a;
@@ -315,8 +324,13 @@ export const ChatWidget = ({ theme: localTheme, viewer }) => {
     }, [activeUser, startCall]);
     const handleEndCall = useCallback(() => {
         endCall();
+        setCallMinimized(false);
         setScreen('chat');
     }, [endCall]);
+    const minimizeCall = useCallback(() => {
+        setCallMinimized(true);
+        closeDrawer();
+    }, [closeDrawer]);
     /* ── Derived ─────────────────────────────────────────────────────────── */
     const isBlocked = activeUser ? blockedUids.includes(activeUser.uid) : false;
     const widgetConfig = useMemo(() => {
@@ -442,7 +456,7 @@ export const ChatWidget = ({ theme: localTheme, viewer }) => {
         @media (max-width: 1024px) {
           .cw-drawer-panel { width: 100%; }
         }
-      ` }), !isOpen && (_jsxs("button", { className: "cw-root", type: "button", onClick: openDrawer, "aria-label": totalUnread > 0 ? `${theme.buttonLabel}, ${totalUnread} unread` : theme.buttonLabel, title: totalUnread > 0 ? `${totalUnread} unread message${totalUnread === 1 ? '' : 's'}` : theme.buttonLabel, style: Object.assign(Object.assign({ position: 'fixed', bottom: 24, zIndex: 9999 }, posStyle), { display: 'flex', alignItems: 'center', gap: 10, padding: '13px 22px', backgroundColor: theme.buttonColor, color: theme.buttonTextColor, border: 'none', borderRadius: 50, cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: `0 8px 28px ${theme.buttonColor}55`, animation: 'cw-btnPop 0.4s cubic-bezier(0.34,1.56,0.64,1)', transition: 'transform 0.2s, box-shadow 0.2s' }), onMouseEnter: e => {
+      ` }), !isOpen && callMinimized && callInProgress && callSession.peer && (_jsx(MiniCallBar, { session: callSession, primaryColor: primaryColor, buttonPosition: theme.buttonPosition, onExpand: openDrawer, onEnd: handleEndCall })), !isOpen && (_jsxs("button", { className: "cw-root", type: "button", onClick: openDrawer, "aria-label": totalUnread > 0 ? `${theme.buttonLabel}, ${totalUnread} unread` : theme.buttonLabel, title: totalUnread > 0 ? `${totalUnread} unread message${totalUnread === 1 ? '' : 's'}` : theme.buttonLabel, style: Object.assign(Object.assign({ position: 'fixed', bottom: 24, zIndex: 9999 }, posStyle), { display: 'flex', alignItems: 'center', gap: 10, padding: '13px 22px', backgroundColor: theme.buttonColor, color: theme.buttonTextColor, border: 'none', borderRadius: 50, cursor: 'pointer', fontSize: 15, fontWeight: 700, boxShadow: `0 8px 28px ${theme.buttonColor}55`, animation: 'cw-btnPop 0.4s cubic-bezier(0.34,1.56,0.64,1)', transition: 'transform 0.2s, box-shadow 0.2s' }), onMouseEnter: e => {
                     e.currentTarget.style.transform = 'scale(1.06) translateY(-2px)';
                     e.currentTarget.style.boxShadow = `0 14px 36px ${theme.buttonColor}66`;
                 }, onMouseLeave: e => {
@@ -481,7 +495,7 @@ export const ChatWidget = ({ theme: localTheme, viewer }) => {
                                     right: theme.buttonPosition === 'bottom-left' ? 'auto' : 12,
                                     left: theme.buttonPosition === 'bottom-left' ? 12 : 'auto',
                                     zIndex: 20, display: 'flex', gap: 6,
-                                }, children: _jsx(CornerBtn, { onClick: closeDrawer, title: "Close", children: _jsx("svg", { width: "12", height: "12", viewBox: "0 0 24 24", fill: "none", children: _jsx("path", { d: "M18 6L6 18M6 6l12 12", stroke: "#fff", strokeWidth: "2.5", strokeLinecap: "round" }) }) }) })), widgetConfig.status === 'MAINTENANCE' && (_jsx(MaintenanceView, { primaryColor: primaryColor })), widgetConfig.status === 'DISABLE' && (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32, textAlign: 'center', gap: 12 }, children: [_jsx("div", { style: { fontSize: 40 }, children: "\uD83D\uDD12" }), _jsx("p", { style: { fontWeight: 700, color: '#1a2332' }, children: "Chat is disabled" }), _jsx("button", { onClick: closeDrawer, style: { padding: '9px 20px', borderRadius: 10, border: 'none', background: primaryColor, color: '#fff', cursor: 'pointer', fontWeight: 700 }, children: "Close" })] })), widgetConfig.status === 'ACTIVE' && effectiveViewerBlocked && (_jsx(ViewerBlockedScreen, { config: widgetConfig, apiKey: apiKey, onClose: closeDrawer })), widgetConfig.status === 'ACTIVE' && !effectiveViewerBlocked && !permissionsOk && (_jsx(PermissionsGateScreen, { primaryColor: primaryColor, widgetId: widgetConfig.id, onGranted: () => setPermissionsOk(true) })), widgetConfig.status === 'ACTIVE' && !effectiveViewerBlocked && permissionsOk && (_jsxs("div", { className: "cw-scroll", style: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, children: [screen === 'home' && (_jsx(HomeScreen, { config: widgetConfig, apiKey: apiKey, onNavigate: handleCardClick, onOpenTicket: handleOpenTicket, tickets: tickets })), screen === 'user-list' && (_jsx(UserListScreen, { context: userListCtx, users: filteredUsers, primaryColor: primaryColor, viewerType: (_e = widgetConfig.viewerType) !== null && _e !== void 0 ? _e : 'user', onBack: () => { setListEntranceAnimation(false); setScreen('home'); }, onSelectUser: handleSelectUser, onBlockList: userListCtx === 'conversation' ? () => setScreen('block-list') : undefined, useHomeHeader: userListCtx === 'support' && widgetConfig.viewerType !== 'developer', animateEntrance: listEntranceAnimation })), screen === 'chat' && activeUser && (_jsx(ChatScreen, { activeUser: activeUser, messages: messages, config: widgetConfig, isPaused: isPaused, isReported: isReported, isBlocked: isBlocked, onSend: sendMessage, onBack: handleBackFromChat, onClose: closeDrawer, onTogglePause: handleTogglePause, onReport: reportChat, onBlock: handleBlock, onStartCall: handleStartCall, onNavAction: handleNavFromMenu, otherDevelopers: otherDevelopers, onTransferToDeveloper: handleTransferToDeveloper, messageSoundEnabled: messageSoundEnabled, onToggleMessageSound: toggleMessageSound })), screen === 'call' && callSession.peer && (_jsx(CallScreen, { session: callSession, localVideoRef: localVideoRef, remoteVideoRef: remoteVideoRef, onEnd: handleEndCall, onToggleMute: toggleMute, onToggleCamera: toggleCamera, primaryColor: primaryColor })), screen === 'recent-chats' && (_jsx(RecentChatsScreen, { chats: recentChats, config: widgetConfig, onSelectChat: u => handleSelectUser(u, listCtxForUser(u, viewerIsDev)), animateEntrance: listEntranceAnimation })), screen === 'tickets' && (_jsx(TicketScreen, { tickets: tickets, config: widgetConfig, onNewTicket: () => { setListEntranceAnimation(false); setScreen('ticket-new'); }, onSelectTicket: id => {
+                                }, children: _jsx(CornerBtn, { onClick: closeDrawer, title: "Close", children: _jsx("svg", { width: "12", height: "12", viewBox: "0 0 24 24", fill: "none", children: _jsx("path", { d: "M18 6L6 18M6 6l12 12", stroke: "#fff", strokeWidth: "2.5", strokeLinecap: "round" }) }) }) })), widgetConfig.status === 'MAINTENANCE' && (_jsx(MaintenanceView, { primaryColor: primaryColor })), widgetConfig.status === 'DISABLE' && (_jsxs("div", { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32, textAlign: 'center', gap: 12 }, children: [_jsx("div", { style: { fontSize: 40 }, children: "\uD83D\uDD12" }), _jsx("p", { style: { fontWeight: 700, color: '#1a2332' }, children: "Chat is disabled" }), _jsx("button", { onClick: closeDrawer, style: { padding: '9px 20px', borderRadius: 10, border: 'none', background: primaryColor, color: '#fff', cursor: 'pointer', fontWeight: 700 }, children: "Close" })] })), widgetConfig.status === 'ACTIVE' && effectiveViewerBlocked && (_jsx(ViewerBlockedScreen, { config: widgetConfig, apiKey: apiKey, onClose: closeDrawer })), widgetConfig.status === 'ACTIVE' && !effectiveViewerBlocked && !permissionsOk && (_jsx(PermissionsGateScreen, { primaryColor: primaryColor, widgetId: widgetConfig.id, onGranted: () => setPermissionsOk(true) })), widgetConfig.status === 'ACTIVE' && !effectiveViewerBlocked && permissionsOk && (_jsxs("div", { className: "cw-scroll", style: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }, children: [screen === 'home' && (_jsx(HomeScreen, { config: widgetConfig, apiKey: apiKey, onNavigate: handleCardClick, onOpenTicket: handleOpenTicket, tickets: tickets })), screen === 'user-list' && (_jsx(UserListScreen, { context: userListCtx, users: filteredUsers, primaryColor: primaryColor, viewerType: (_e = widgetConfig.viewerType) !== null && _e !== void 0 ? _e : 'user', onBack: () => { setListEntranceAnimation(false); setScreen('home'); }, onSelectUser: handleSelectUser, onBlockList: userListCtx === 'conversation' ? () => setScreen('block-list') : undefined, useHomeHeader: userListCtx === 'support' && widgetConfig.viewerType !== 'developer', animateEntrance: listEntranceAnimation })), screen === 'chat' && activeUser && (_jsx(ChatScreen, { activeUser: activeUser, messages: messages, config: widgetConfig, isPaused: isPaused, isReported: isReported, isBlocked: isBlocked, onSend: sendMessage, onBack: handleBackFromChat, onClose: closeDrawer, onTogglePause: handleTogglePause, onReport: reportChat, onBlock: handleBlock, onStartCall: handleStartCall, onNavAction: handleNavFromMenu, otherDevelopers: otherDevelopers, onTransferToDeveloper: handleTransferToDeveloper, messageSoundEnabled: messageSoundEnabled, onToggleMessageSound: toggleMessageSound })), screen === 'call' && callSession.peer && (_jsx(CallScreen, { session: callSession, localVideoRef: localVideoRef, remoteVideoRef: remoteVideoRef, onEnd: handleEndCall, onToggleMute: toggleMute, onToggleCamera: toggleCamera, primaryColor: primaryColor, onMinimize: minimizeCall })), screen === 'recent-chats' && (_jsx(RecentChatsScreen, { chats: recentChats, config: widgetConfig, onSelectChat: u => handleSelectUser(u, listCtxForUser(u, viewerIsDev)), animateEntrance: listEntranceAnimation })), screen === 'tickets' && (_jsx(TicketScreen, { tickets: tickets, config: widgetConfig, onNewTicket: () => { setListEntranceAnimation(false); setScreen('ticket-new'); }, onSelectTicket: id => {
                                             setListEntranceAnimation(false);
                                             setViewingTicketId(id);
                                             setScreen('ticket-detail');

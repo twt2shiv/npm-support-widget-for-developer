@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { avatarColor, initials } from '../../utils/chat';
-export const CallScreen = ({ session, localVideoRef, remoteVideoRef, onEnd, onToggleMute, onToggleCamera, primaryColor, }) => {
+export const CallScreen = ({ session, localVideoRef, remoteVideoRef, onEnd, onToggleMute, onToggleCamera, primaryColor, onMinimize, }) => {
     const [duration, setDuration] = useState(0);
     const peer = session.peer;
     useEffect(() => {
@@ -25,7 +25,17 @@ export const CallScreen = ({ session, localVideoRef, remoteVideoRef, onEnd, onTo
                     objectFit: 'cover', border: '2px solid rgba(255,255,255,0.3)',
                     display: session.isCameraOn ? 'block' : 'none',
                     zIndex: 10,
-                } }), _jsxs("div", { style: { position: 'relative', zIndex: 5, display: 'flex', flexDirection: 'column', height: '100%', background: 'rgba(0,0,0,0.35)' }, children: [_jsx("div", { style: { padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10 }, children: _jsx("div", { style: { flex: 1 }, children: _jsxs("div", { style: { fontWeight: 700, fontSize: 15, color: '#fff' }, children: [session.state === 'calling' && 'Calling...', session.state === 'connected' && 'Connected', session.state === 'ended' && 'Call Ended'] }) }) }), _jsx("div", { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }, children: peer && (_jsxs(_Fragment, { children: [_jsx("div", { style: {
+                } }), _jsxs("div", { style: { position: 'relative', zIndex: 5, display: 'flex', flexDirection: 'column', height: '100%', background: 'rgba(0,0,0,0.35)' }, children: [_jsxs("div", { style: { padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 10 }, children: [_jsx("div", { style: { flex: 1 }, children: _jsxs("div", { style: { fontWeight: 700, fontSize: 15, color: '#fff' }, children: [session.state === 'calling' && 'Calling...', session.state === 'connected' && 'Connected', session.state === 'ended' && 'Call Ended'] }) }), (session.state === 'calling' || session.state === 'connected') && onMinimize && (_jsx("button", { type: "button", onClick: onMinimize, title: "Minimize \u2014 keep call while you use the page", style: {
+                                    padding: '8px 12px',
+                                    borderRadius: 10,
+                                    border: '1px solid rgba(255,255,255,0.35)',
+                                    background: 'rgba(0,0,0,0.25)',
+                                    color: '#fff',
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                }, children: "Minimize" }))] }), _jsx("div", { style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }, children: peer && (_jsxs(_Fragment, { children: [_jsx("div", { style: {
                                         width: 90, height: 90, borderRadius: '50%',
                                         backgroundColor: avatarColor(peer.name),
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',

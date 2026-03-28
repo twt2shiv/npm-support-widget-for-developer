@@ -72,37 +72,37 @@ export const HomeScreen = ({ config, apiKey, onNavigate, onOpenTicket, tickets }
                             justifyContent: 'center',
                             gap: 5,
                             flexShrink: 0,
-                        }, children: [_jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } })] }), _jsx("div", { style: { flex: 1, minWidth: 0 } }), _jsxs("div", { style: {
+                        }, children: [_jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } }), _jsx("span", { style: { width: 18, height: 2, background: '#334155', borderRadius: 1 } })] }), _jsx("div", { style: { flex: 1, minWidth: 0 } }), _jsx("div", { style: {
                             display: 'flex',
                             alignItems: 'center',
                             gap: 6,
                             flexShrink: 0,
                             flexWrap: 'wrap',
                             justifyContent: 'flex-end',
-                        }, children: [_jsx("span", { style: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }, children: "Status" }), _jsx("div", { role: "group", "aria-label": "Your status", style: {
-                                    display: 'flex',
-                                    borderRadius: 10,
-                                    padding: 3,
-                                    background: '#f1f5f9',
-                                    gap: 2,
-                                }, children: STATUS_OPTIONS.map(({ value, label }) => {
-                                    const isOn = presence === value;
-                                    return (_jsx("button", { type: "button", onClick: () => setPresenceAndSave(value), style: {
-                                            border: 'none',
-                                            borderRadius: 8,
-                                            padding: '7px 10px',
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            letterSpacing: '0.04em',
-                                            cursor: 'pointer',
-                                            fontFamily: 'inherit',
-                                            textTransform: 'uppercase',
-                                            background: isOn ? config.primaryColor : 'transparent',
-                                            color: isOn ? '#fff' : '#64748b',
-                                            boxShadow: isOn ? `0 2px 8px ${config.primaryColor}55` : 'none',
-                                            transition: 'background 0.15s, color 0.15s',
-                                        }, children: label }, value));
-                                }) })] })] }), _jsxs("div", { className: "cw-scroll", style: { flex: 1, overflowY: 'auto', padding: '20px 18px 28px' }, children: [_jsx("h1", { style: {
+                        }, children: _jsx("div", { role: "group", "aria-label": "Your status", style: {
+                                display: 'flex',
+                                borderRadius: 10,
+                                padding: 3,
+                                background: '#f1f5f9',
+                                gap: 2,
+                            }, children: STATUS_OPTIONS.map(({ value, label }) => {
+                                const isOn = presence === value;
+                                return (_jsx("button", { type: "button", onClick: () => setPresenceAndSave(value), style: {
+                                        border: 'none',
+                                        borderRadius: 8,
+                                        padding: '7px 10px',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        letterSpacing: '0.04em',
+                                        cursor: 'pointer',
+                                        fontFamily: 'inherit',
+                                        textTransform: 'uppercase',
+                                        background: isOn ? config.primaryColor : 'transparent',
+                                        color: isOn ? '#fff' : '#64748b',
+                                        boxShadow: isOn ? `0 2px 8px ${config.primaryColor}55` : 'none',
+                                        transition: 'background 0.15s, color 0.15s',
+                                    }, children: label }, value));
+                            }) }) })] }), _jsxs("div", { className: "cw-scroll", style: { flex: 1, overflowY: 'auto', padding: '20px 18px 28px' }, children: [_jsx("h1", { style: {
                             margin: '0 0 8px',
                             fontSize: 24,
                             fontWeight: 800,
